@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: "Skytraxx";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(/fonts/font.woff2) format("woff2");
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
