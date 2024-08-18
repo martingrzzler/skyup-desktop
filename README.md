@@ -60,9 +60,3 @@ npm run tauri build
 ```bash
 npm run tauri build
 ```
-
-### IOS
-
-1. Install prerequisites
-   [https://v2.tauri.app/start/prerequisites/#ios](https://v2.tauri.app/start/prerequisites/#ios)
-2. `npm run tauri ios dev`
