@@ -3,7 +3,7 @@ use mail_send::mail_builder::MessageBuilder;
 use mail_send::smtp::message::IntoMessage; // Import IntoMessage trait
 use mail_send::SmtpClientBuilder;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr; // Import OsStr from std::ffi
+use std::ffi::OsStr;
 use std::io::prelude::Read;
 use std::io::{self, Write};
 use std::path::Path;
@@ -148,21 +148,7 @@ async fn send_crash_report_cmd(_handle: tauri::AppHandle) -> Result<(), String> 
 
 #[tauri::command]
 async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(), String> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .or(Err("Failed to download archive"))?;
-
-    let total = response.content_length().unwrap_or(0);
-    let mut stream = response.bytes_stream();
-    let mut buffer: Vec<u8> = Vec::new();
-
-    let mut downloaded = 0;
-    while let Some(chunk) = stream.try_next().await.or(Err("Failed to get chunk"))? {
-        buffer.write_all(&chunk).or(Err("Failed to write chunk"))?;
-        downloaded += chunk.len() as u64;
+    let buffer = download_archive(url, |total, downloaded| {
         let _ = window.emit(
             "UPDATE_PROGRESS",
             UpdateProgress {
@@ -174,7 +160,9 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
                 current_file: "".to_string(),
             },
         );
-    }
+    })
+    .await
+    .or_else(|err| Err(format!("Failed to download archive: {}", err)))?;
 
     let mut ar = Archive::new(&buffer[..]);
     let iter = ar.entries().or(Err("Failed to get entries"))?;
@@ -185,18 +173,20 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
         .collect();
     let count = entries.len() as u16;
     let mut processed_files = 0;
-
-    let _ = window.emit(
-        "UPDATE_PROGRESS",
-        UpdateProgress {
-            total_bytes: total,
-            downloaded,
-            url: url.to_string(),
-            total_files: count,
-            processed_files,
-            current_file: "".to_string(),
-        },
-    );
+    let mut update_processing_progress = |current_file: &str| {
+        processed_files += 1;
+        let _ = window.emit(
+            "UPDATE_PROGRESS",
+            UpdateProgress {
+                total_bytes: buffer.len() as u64,
+                downloaded: buffer.len() as u64,
+                url: url.to_string(),
+                total_files: count,
+                processed_files,
+                current_file: current_file.to_string(),
+            },
+        );
+    };
 
     let mountpoint = find_mountpoint("Skytraxx").ok_or("Skytraxx not found")?;
     for item in iter {
@@ -228,8 +218,8 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
                 let _ = window.emit(
                     "UPDATE_PROGRESS",
                     UpdateProgress {
-                        total_bytes: total,
-                        downloaded,
+                        total_bytes: buffer.len() as u64,
+                        downloaded: buffer.len() as u64,
                         url: url.to_string(),
                         total_files: 100,
                         processed_files: (file_processed_bytes * 100 / file_size) as u16,
@@ -246,12 +236,26 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
                             entry
                                 .unpack(&device_path)
                                 .or_else(|err| Err(err.to_string()))?;
+
+                            let path = entry.path().or(Err("Failed to get entry path"))?;
+                            update_processing_progress(path.to_str().unwrap());
                             continue;
                         }
 
                         return Err(err.to_string());
                     }
                 };
+
+                // if file is smaller than 12 bytes just copy it
+                if device_file.metadata().unwrap().len() < 12 {
+                    entry
+                        .unpack(&device_path)
+                        .or_else(|err| Err(err.to_string()))?;
+
+                    let path = entry.path().or(Err("Failed to get entry path"))?;
+                    update_processing_progress(path.to_str().unwrap());
+                    continue;
+                }
 
                 let mut device_buffer = [0; 12];
                 device_file
@@ -336,21 +340,35 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
             }
         }
         let path = entry.path().or(Err("Failed to get entry path"))?;
-        processed_files += 1;
-        let _ = window.emit(
-            "UPDATE_PROGRESS",
-            UpdateProgress {
-                total_bytes: total,
-                downloaded,
-                url: url.to_string(),
-                total_files: count,
-                processed_files,
-                current_file: path.to_str().unwrap().to_string(),
-            },
-        );
+        update_processing_progress(path.to_str().unwrap());
     }
 
     Ok(())
+}
+
+async fn download_archive(
+    url: &str,
+    mut on_update: impl FnMut(u64, u64),
+) -> Result<Vec<u8>, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .or(Err("Failed to download archive"))?;
+
+    let total = response.content_length().unwrap_or(0);
+    let mut stream = response.bytes_stream();
+    let mut buffer: Vec<u8> = Vec::new();
+
+    let mut downloaded = 0;
+    while let Some(chunk) = stream.try_next().await.or(Err("Failed to get chunk"))? {
+        buffer.write_all(&chunk).or(Err("Failed to write chunk"))?;
+        downloaded += chunk.len() as u64;
+        on_update(total, downloaded);
+    }
+
+    Ok(buffer)
 }
 
 #[tauri::command]

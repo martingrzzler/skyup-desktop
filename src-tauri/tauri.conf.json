@@ -1,6 +1,6 @@
 {
   "productName": "skyup",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "identifier": "com.martingrzzler.dev",
   "build": {
     "beforeDevCommand": "npm run dev",

@@ -71,7 +71,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
     getCurrentWindow().listen(
       "UPDATE_PROGRESS",
       ({ payload }: { payload: UpdateProgress }) => {
-        console.log("UPDATE_PROGRESS", payload);
+        // console.log("UPDATE_PROGRESS", payload);
         const downloadPercentage = Math.round(
           (payload.downloaded / payload.totalBytes) * 100
         );
