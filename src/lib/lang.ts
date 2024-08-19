@@ -1,5 +1,4 @@
 import { locale } from "@tauri-apps/plugin-os";
-import { SelfUpdate } from "../components/self-update";
 
 export async function getLanguage(): Promise<keyof typeof text> {
   const code = await locale();
