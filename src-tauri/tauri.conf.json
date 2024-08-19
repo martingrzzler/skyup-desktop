@@ -1,6 +1,6 @@
 {
   "productName": "skyup",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "identifier": "com.martingrzzler.dev",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -21,6 +21,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": "v1Compatible",
     "active": true,
     "targets": "all",
     "icon": [
@@ -30,5 +31,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCNkUyQUIyNDUzRTJGMTAKUldRUUx6NUZzaXB1KzluaS9pVjJ1elRNeVlwSjNmRVd0QndCSnFrakZ5RFBlVnI0Q1NQUTlZNkQK",
+      "endpoints": [
+        "https://gist.githubusercontent.com/martingrzzler/028c8a15cbfc8d1bb900104a359fbe8c/raw/d29eb65cc75dd303bc08f5be882f12db4d6da335/skyup_update.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

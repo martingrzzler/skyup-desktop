@@ -1,4 +1,5 @@
 import { locale } from "@tauri-apps/plugin-os";
+import { SelfUpdate } from "../components/self-update";
 
 export async function getLanguage(): Promise<keyof typeof text> {
   const code = await locale();
@@ -25,6 +26,7 @@ export const text = {
     success:
       "Your vario has been successfully updated! You can close the app now. Afterwards, eject the drive!",
     update: "Update Vario",
+    selfUpdate: "Updating SkyUp...",
   },
   de: {
     downloadEssentials: "Download essentieller Dateien",
@@ -42,5 +44,6 @@ export const text = {
     success:
       "Dein Vario wurde erfolgreich aktualisiert! Du kannst die App jetzt schließen. Danach das Laufwerk auswerfen!",
     update: "Vario aktualisieren",
+    selfUpdate: "SkyUp wird aktualisiert...",
   },
 };

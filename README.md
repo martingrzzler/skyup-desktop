@@ -34,12 +34,18 @@ impl Default for AppCfg {
 }
 ```
 
-3. Run `npm install`
-4. Run `npm run tauri dev`
+4. Run `npm install`
+5. Run `npm run tauri dev`
 
 ## Build
 
 Tauri does not support cross-compiling yet, so you need to build the app on the target platform.
+Set environment variables for the signing the app. Note: This is not the Apple Signing process.
+
+```bash
+export TAURI_SIGNING_PRIVATE_KEY="Path or content of your private key"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+```
 
 ### MACOS
 

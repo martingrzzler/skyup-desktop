@@ -27,13 +27,14 @@ tar --exclude='._*' --format=ustar -cf skytraxx5mini-app.tar update/app.tar
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
             get_skytraxx_device_cmd,
             download_and_update_cmd,
             send_crash_report_cmd,
-            check_for_app_update_cmd,
         ])
         .setup(|app| {
             #[cfg(desktop)]
@@ -52,23 +53,6 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[tauri::command]
-async fn check_for_app_update_cmd(url: String, app_version: String) -> Result<bool, String> {
-    match reqwest::get(&url).await {
-        Ok(response) => {
-            if response.status().is_success() {
-                let server_version = response.text().await.unwrap();
-                println!("Remote version {}", server_version.trim());
-                if server_version.trim() != app_version.trim() {
-                    return Ok(true);
-                }
-            }
-            Ok(false)
-        }
-        Err(err) => Err(format!("Failed to fetch version info: {}", err)),
-    }
 }
 
 #[tauri::command]
