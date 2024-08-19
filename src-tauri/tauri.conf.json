@@ -21,7 +21,7 @@
     }
   },
   "bundle": {
-    "createUpdaterArtifacts": "v1Compatible",
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [
