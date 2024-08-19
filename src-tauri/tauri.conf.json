@@ -36,7 +36,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCNkUyQUIyNDUzRTJGMTAKUldRUUx6NUZzaXB1KzluaS9pVjJ1elRNeVlwSjNmRVd0QndCSnFrakZ5RFBlVnI0Q1NQUTlZNkQK",
       "endpoints": [
-        "https://gist.githubusercontent.com/martingrzzler/028c8a15cbfc8d1bb900104a359fbe8c/raw/d29eb65cc75dd303bc08f5be882f12db4d6da335/skyup_update.json"
+        "https://gist.github.com/martingrzzler/028c8a15cbfc8d1bb900104a359fbe8c/raw"
       ],
       "windows": {
         "installMode": "passive"
