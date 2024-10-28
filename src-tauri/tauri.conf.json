@@ -1,6 +1,6 @@
 {
-  "productName": "skyup",
-  "version": "1.0.1",
+  "productName": "SkyUp",
+  "version": "1.0.2",
   "identifier": "com.martingrzzler.dev",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "skyup",
+        "title": "SkyUp",
         "width": 800,
         "height": 600
       }
@@ -36,7 +36,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCNkUyQUIyNDUzRTJGMTAKUldRUUx6NUZzaXB1KzluaS9pVjJ1elRNeVlwSjNmRVd0QndCSnFrakZ5RFBlVnI0Q1NQUTlZNkQK",
       "endpoints": [
-        "https://gist.github.com/martingrzzler/028c8a15cbfc8d1bb900104a359fbe8c/raw"
+        "https://www.skytraxx.org/skyup/skyup_update.json"
       ],
       "windows": {
         "installMode": "passive"
