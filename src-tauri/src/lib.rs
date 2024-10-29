@@ -315,9 +315,9 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
                                 entry
                                     .unpack(&device_path)
                                     .or_else(|err| Err(err.to_string()))?;
+                            } else {
+                                return Err(err.to_string());
                             }
-
-                            return Err(err.to_string());
                         }
                     }
                 }
