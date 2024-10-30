@@ -4,6 +4,7 @@ import { Update } from "@tauri-apps/plugin-updater";
 import { Progress } from "./progress";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { text } from "../lib/lang";
+import { exit } from "@tauri-apps/plugin-process";
 
 export function SelfUpdate({
   update,
@@ -41,7 +42,11 @@ export function SelfUpdate({
             break;
         }
       });
-      await relaunch();
+
+      relaunch().catch((e) => {
+        console.error(e);
+        exit(1);
+      });
     })();
   }, []);
   return (

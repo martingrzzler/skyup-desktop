@@ -14,10 +14,10 @@ export const text = {
   en: {
     downloadEssentials: "Download essential files",
     downloadSystem: "Download system files",
-    downloadApp: "Download SkyUp",
+    downloadAppInstaller: "Download SkyUp Installer",
     updateEssentials: "Update essential files",
     updateSystem: "Update system files",
-    updateApp: "Update SkyUp",
+    updateAppInstaller: "Update SkyUp Installer",
     deviceNotFound: "Skytraxx Vario not found. Is it connected?",
     only5Mini: "Only Skytraxx 5 Mini devices can be updated at the moment.",
     updateError:
@@ -30,10 +30,10 @@ export const text = {
   de: {
     downloadEssentials: "Download essentieller Dateien",
     downloadSystem: "Download System Dateien",
-    downloadApp: "Download SkyUp",
+    downloadAppInstaller: "Download SkyUp Installer",
     updateEssentials: "Essentielle Dateien aktualisieren",
     updateSystem: "System Dateien aktualisieren",
-    updateApp: "Aktualisiere SkyUp",
+    updateAppInstaller: "Aktualisiere SkyUp Installer",
     deviceNotFound:
       "Skytraxx Vario konnte nicht gefunden werden. Ist es angeschlossen?",
     only5Mini:

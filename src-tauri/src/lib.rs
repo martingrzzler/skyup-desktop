@@ -3,6 +3,7 @@ use mail_send::mail_builder::MessageBuilder;
 use mail_send::smtp::message::IntoMessage; // Import IntoMessage trait
 use mail_send::SmtpClientBuilder;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::ffi::OsStr;
 use std::io::prelude::Read;
 use std::io::{self, Write};
@@ -35,6 +36,8 @@ pub fn run() {
             get_skytraxx_device_cmd,
             download_and_update_cmd,
             send_crash_report_cmd,
+            is_running_on_main_volume_cmd,
+            fetch_app_installer_version_cmd
         ])
         .setup(|app| {
             #[cfg(desktop)]
@@ -179,9 +182,13 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
         let device_path = format!("{}/{}", mountpoint, path.to_str().unwrap());
         if count == 1 {
             // Handle single file, emit progress for each chunk
+            let device_path_cp = Path::new(&device_path);
+            let prefix = device_path_cp.parent().unwrap();
+            fs::create_dir_all(prefix).map_err(|err| format!("Failed to create dir: {}", err))?;
             let mut file_processed_bytes = 0;
             let mut chunk = vec![0; 32768]; // Buffer to read chunks
-            let mut file = File::create(&device_path).or(Err("Failed to create file"))?;
+            let mut file = File::create(&device_path)
+                .map_err(|err| format!("Failed to create file: {}", err))?;
             let file_size = entry.header().size().unwrap_or(0);
             loop {
                 let bytes_read = match entry.read(&mut chunk) {
@@ -320,8 +327,28 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
                             }
                         }
                     }
+                } else {
+                    let mut entry_buf = vec![];
+                    entry
+                        .read_to_end(&mut entry_buf)
+                        .map_err(|err| format!("Failed to read entry: {}", err))?;
+
+                    let device_buf = fs::read(&device_path)
+                        .map_err(|err| format!("Failed to read device file: {}", err))?;
+
+                    if entry_buf != device_buf {
+                        fs::write(&device_path, &entry_buf)
+                            .map_err(|err| format!("Failed to write device file: {}", err))?;
+
+                        println!("Updated {}", device_path);
+                    }
                 }
             }
+        } else {
+            // otherwise probably a directory
+            let path = entry.path().or(Err("Failed to get entry path"))?;
+            fs::create_dir_all(format!("{}/{}", mountpoint, path.to_str().unwrap()))
+                .map_err(|err| format!("Failed to create dir: {}", err))?;
         }
         let path = entry.path().or(Err("Failed to get entry path"))?;
         update_processing_progress(path.to_str().unwrap());
@@ -360,6 +387,34 @@ fn get_skytraxx_device_cmd() -> FrontendResult<DeviceInfo> {
     match get_skytraxx_device() {
         Ok(device) => FrontendResult::result(device),
         Err(err) => FrontendResult::error(err),
+    }
+}
+
+#[tauri::command]
+fn is_running_on_main_volume_cmd() -> Result<bool, String> {
+    let exe_path = env::current_exe().map_err(|e| e.to_string())?;
+    // If the path does not start with `/Volumes`, it's likely the main volume
+    Ok(!exe_path.starts_with("/Volumes"))
+}
+
+#[tauri::command]
+async fn fetch_app_installer_version_cmd(url: String) -> Result<String, String> {
+    match reqwest::get(&url).await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let server_version = response
+                    .text()
+                    .await
+                    .map_err(|err| format!("Failed to read response text: {}", err.to_string()))?;
+                return Ok(server_version);
+            }
+
+            Err(format!(
+                "Failed to fetch version info: {}",
+                response.status().to_string()
+            ))
+        }
+        Err(err) => Err(format!("Failed to fetch version info: {}", err)),
     }
 }
 

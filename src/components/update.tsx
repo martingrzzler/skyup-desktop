@@ -6,6 +6,8 @@ import { check, Update as SelfUpdateInfo } from "@tauri-apps/plugin-updater";
 import { SelfUpdate } from "./self-update";
 import { Progress } from "./progress";
 import { Text } from "./text";
+import { platform } from "@tauri-apps/plugin-os";
+import { getVersion } from "@tauri-apps/api/app";
 
 type BackendResponse<T> = {
   error?: string;
@@ -30,12 +32,18 @@ const ESSENTIALS_URL =
   "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-essentials.tar";
 const SYSTEM_URL =
   "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-system.tar";
+const APP_INSTALLER_URL =
+  "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-app.tar";
+const APP_INSRALLER_VERSION_URL =
+  "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-app.ver";
 
 export default function Update({ lang }: { lang: keyof typeof text }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [update, setUpdate] = useState<SelfUpdateInfo | null>(null);
+  const [appInstallerUpdateAvailable, setAppInstallerUpdateAvailable] =
+    useState(false);
   const [updateProgress, setUpdateProgress] = useState({
     essentialsDownload: 0,
     essentialsInstalling: 0,
@@ -43,22 +51,67 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
     systemDownload: 0,
     systemInstalling: 0,
     systemCurrentFile: "",
+    appInstallerDownload: 0,
+    appInstallerInstalling: 0,
+    appInstallerCurrentFile: "",
   });
   const essentialsDownloadedRef = useRef(0);
 
   useEffect(() => {
     (async () => {
-      const update = await check();
-      setUpdate(update);
+      if (import.meta.env.DEV) {
+        console.log("Running in dev mode");
+        return;
+      }
+      const update = await checkSelfUpdate();
+      if (update) {
+        setUpdate(update);
+      }
+
+      if (await checkAppInstallerUpdate()) {
+        setAppInstallerUpdateAvailable(true);
+      }
     })();
   }, []);
+
+  async function checkSelfUpdate(): Promise<SelfUpdateInfo | null> {
+    if (platform() === "macos") {
+      const isMainVolume = (await invoke(
+        "is_running_on_main_volume_cmd"
+      )) as boolean;
+
+      if (!isMainVolume) {
+        return null;
+      }
+    }
+    return check();
+  }
+
+  async function checkAppInstallerUpdate() {
+    const currentVersion = await getVersion();
+
+    try {
+      const newVersion = await invoke("fetch_app_installer_version_cmd", {
+        url: APP_INSRALLER_VERSION_URL,
+      });
+
+      console.log("App installer version", newVersion);
+      if (newVersion !== currentVersion) {
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.log("Error fetching app installer version", error);
+      return false;
+    }
+  }
 
   async function fetchWithProgress() {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     getCurrentWindow().listen(
       "UPDATE_PROGRESS",
       ({ payload }: { payload: UpdateProgress }) => {
-        console.log("UPDATE_PROGRESS", payload);
         const downloadPercentage = Math.round(
           (payload.downloaded / payload.totalBytes) * 100
         );
@@ -85,6 +138,14 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
               systemCurrentFile: payload.currentFile,
             }));
             break;
+          case APP_INSTALLER_URL:
+            setUpdateProgress((prev) => ({
+              ...prev,
+              appInstallerDownload: downloadPercentage,
+              appInstallerInstalling: installPercentage || 0,
+              appInstallerCurrentFile: payload.currentFile,
+            }));
+            break;
           default:
             throw new Error("Unknown URL: " + payload.url);
         }
@@ -105,6 +166,10 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
       setTimeout(async () => {
         // if the internet connection is fast enough (100 KB/s) we can also download the system files
         if (essentialsDownloadedRef.current >= 204800) {
+          if (appInstallerUpdateAvailable) {
+            console.log("Downloading app installer update");
+            await invoke("download_and_update_cmd", { url: APP_INSTALLER_URL });
+          }
           console.log("Downloading system files");
           await invoke("download_and_update_cmd", { url: SYSTEM_URL });
           resolve(true);
@@ -161,6 +226,22 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
               />
             </>
           ) : null}
+          {!!updateProgress.appInstallerDownload ? (
+            <>
+              <Progress
+                label={text[lang].downloadAppInstaller}
+                value={updateProgress.appInstallerDownload}
+              />
+              <Progress
+                label={`${text[lang].updateAppInstaller}     ${
+                  updateProgress.appInstallerInstalling !== 100
+                    ? updateProgress.appInstallerCurrentFile
+                    : ""
+                }`}
+                value={updateProgress.appInstallerInstalling}
+              />
+            </>
+          ) : null}
           {!!updateProgress.systemDownload ? (
             <>
               <Progress
@@ -196,6 +277,9 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
                   systemDownload: 0,
                   systemInstalling: 0,
                   systemCurrentFile: "",
+                  appInstallerCurrentFile: "",
+                  appInstallerDownload: 0,
+                  appInstallerInstalling: 0,
                 });
                 setSuccessMessage(null);
 
