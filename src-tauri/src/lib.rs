@@ -152,7 +152,7 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
     .or_else(|err| Err(format!("Failed to download archive: {}", err)))?;
 
     let mut ar = Archive::new(&buffer[..]);
-    let iter = ar.entries().or(Err("Failed to get entries"))?;
+    let mut iter = ar.entries().or(Err("Failed to get entries"))?;
     let mut copied_ar = Archive::new(&buffer[..]);
     let entries: Vec<Result<Entry<&[u8]>, io::Error>> = copied_ar
         .entries()
@@ -176,49 +176,34 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
     };
 
     let mountpoint = find_mountpoint("Skytraxx").ok_or("Skytraxx not found")?;
+    // handle single file hack
+    if count == 1 {
+        let entry = iter.next().unwrap().or(Err("Failed to get entry"))?;
+        let path = entry.path().or(Err("Failed to get entry path"))?;
+        let device_path = format!("{}/{}", mountpoint, path.to_str().unwrap());
+        extract_single_file(entry, &device_path, |processed| {
+            let _ = window.emit(
+                "UPDATE_PROGRESS",
+                UpdateProgress {
+                    total_bytes: buffer.len() as u64,
+                    downloaded: buffer.len() as u64,
+                    url: url.to_string(),
+                    total_files: 100,
+                    processed_files: processed,
+                    current_file: "".to_string(),
+                },
+            );
+        })
+        .map_err(|err| format!("Failed to extract single file: {}", err))?;
+
+        return Ok(());
+    }
+
     for item in iter {
         let mut entry = item.or(Err("Failed to get entry"))?;
         let path = entry.path().or(Err("Failed to get entry path"))?;
         let device_path = format!("{}/{}", mountpoint, path.to_str().unwrap());
-        if count == 1 {
-            // Handle single file, emit progress for each chunk
-            let device_path_cp = Path::new(&device_path);
-            let prefix = device_path_cp.parent().unwrap();
-            fs::create_dir_all(prefix).map_err(|err| format!("Failed to create dir: {}", err))?;
-            let mut file_processed_bytes = 0;
-            let mut chunk = vec![0; 32768]; // Buffer to read chunks
-            let mut file = File::create(&device_path)
-                .map_err(|err| format!("Failed to create file: {}", err))?;
-            let file_size = entry.header().size().unwrap_or(0);
-            loop {
-                let bytes_read = match entry.read(&mut chunk) {
-                    Ok(0) => break, // EOF reached
-                    Ok(n) => n,     // Successfully read `n` bytes
-                    Err(err) => return Err(format!("Failed to read entry: {}", err).into()), // Handle the error properly
-                };
-
-                file.write_all(&chunk[..bytes_read])
-                    .or(Err("Failed to write chunk"))?;
-                // Flush all pending writes to the underlying device
-                let _ = match file.sync_all() {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(e),
-                };
-                file_processed_bytes += bytes_read as u64;
-
-                let _ = window.emit(
-                    "UPDATE_PROGRESS",
-                    UpdateProgress {
-                        total_bytes: buffer.len() as u64,
-                        downloaded: buffer.len() as u64,
-                        url: url.to_string(),
-                        total_files: 100,
-                        processed_files: (file_processed_bytes * 100 / file_size) as u16,
-                        current_file: "".to_string(), //path.to_str().unwrap().to_string(),
-                    },
-                );
-            }
-        } else if let Some(ext) = path.extension() {
+        if let Some(ext) = path.extension() {
             if ext == "oab" || ext == "owb" || ext == "otb" || ext == "oob" {
                 let mut device_file = match File::open(&device_path) {
                     Ok(f) => f,
@@ -352,6 +337,41 @@ async fn download_and_update_cmd(window: WebviewWindow, url: &str) -> Result<(),
         }
         let path = entry.path().or(Err("Failed to get entry path"))?;
         update_processing_progress(path.to_str().unwrap());
+    }
+
+    Ok(())
+}
+
+fn extract_single_file(
+    mut entry: Entry<'_, &[u8]>,
+    device_path: &str,
+    on_progress: impl Fn(u16),
+) -> Result<(), String> {
+    // Handle single file, emit progress for each chunk
+    let device_path_cp = Path::new(device_path);
+    let prefix = device_path_cp.parent().unwrap();
+    fs::create_dir_all(prefix).map_err(|err| format!("Failed to create dir: {}", err))?;
+    let mut file_processed_bytes = 0;
+    let mut chunk = vec![0; 32768]; // Buffer to read chunks
+    let mut file =
+        File::create(&device_path).map_err(|err| format!("Failed to create file: {}", err))?;
+    let file_size = entry.header().size().unwrap_or(0);
+    loop {
+        let bytes_read = match entry.read(&mut chunk) {
+            Ok(0) => break, // EOF reached
+            Ok(n) => n,     // Successfully read `n` bytes
+            Err(err) => return Err(format!("Failed to read entry: {}", err).into()), // Handle the error properly
+        };
+
+        file.write_all(&chunk[..bytes_read])
+            .or(Err("Failed to write chunk"))?;
+        // Flush all pending writes to the underlying device
+        let _ = match file.sync_all() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        };
+        file_processed_bytes += bytes_read as u64;
+        on_progress((file_processed_bytes * 100 / file_size) as u16);
     }
 
     Ok(())

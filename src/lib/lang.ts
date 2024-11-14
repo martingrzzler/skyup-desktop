@@ -19,9 +19,10 @@ export const text = {
     updateSystem: "Update system files",
     updateAppInstaller: "Update SkyUp Installer",
     deviceNotFound: "Skytraxx Vario not found. Is it connected?",
-    only5Mini: "Only Skytraxx 5 Mini devices can be updated at the moment.",
+    unsupportedDevice:
+      "Device not supported. Only Skytraxx 5 or 5 Mini devices can be updated at the moment.",
     updateError:
-      "Error updating. Are you connected to the internet? Is the Skytraxx 5 Mini connected?",
+      "Error updating. Are you connected to the internet? Is the Skytraxx Vario connected?",
     success:
       "Your vario has been successfully updated! You can close the app now. Afterwards, eject the drive!",
     update: "Update Vario",
@@ -36,10 +37,10 @@ export const text = {
     updateAppInstaller: "Aktualisiere SkyUp Installer",
     deviceNotFound:
       "Skytraxx Vario konnte nicht gefunden werden. Ist es angeschlossen?",
-    only5Mini:
-      "Im Moment können nur Skytraxx 5 Mini Geräte aktualisiert werden.",
+    unsupportedDevice:
+      "Das Gerät wird nicht unterstützt. Nur Skytraxx 5 oder 5 Mini Geräte können derzeit aktualisiert werden.",
     updateError:
-      "Fehler beim Aktualisieren. Bist du mit dem Internet verbunden? Ist das Skytraxx 5 Mini angeschlossen?",
+      "Fehler beim Aktualisieren. Bist du mit dem Internet verbunden? Ist das Skytraxx Vario angeschlossen?",
     success:
       "Dein Vario wurde erfolgreich aktualisiert! Du kannst die App jetzt schließen. Danach das Laufwerk auswerfen!",
     update: "Vario aktualisieren",

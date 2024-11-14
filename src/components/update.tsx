@@ -28,14 +28,22 @@ type UpdateProgress = {
   processedFiles: number;
 };
 
-const ESSENTIALS_URL =
-  "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-essentials.tar";
-const SYSTEM_URL =
-  "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-system.tar";
 const APP_INSTALLER_URL =
   "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-app.tar";
 const APP_INSRALLER_VERSION_URL =
   "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-app.ver";
+
+const urls = {
+  "5mini": {
+    essentials:
+      "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-essentials.tar",
+    system: "https://www.skytraxx.org/skytraxx5mini/skytraxx5mini-system.tar",
+  },
+  "5": {
+    essentials: "https://www.skytraxx.org/skytraxx5/skytraxx5-essentials.tar",
+    system: "https://www.skytraxx.org/skytraxx5/skytraxx5-system.tar",
+  },
+};
 
 export default function Update({ lang }: { lang: keyof typeof text }) {
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +52,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
   const [update, setUpdate] = useState<SelfUpdateInfo | null>(null);
   const [appInstallerUpdateAvailable, setAppInstallerUpdateAvailable] =
     useState(false);
+  const [deviceType, setDeviceType] = useState<"5mini" | "5" | null>(null);
   const [updateProgress, setUpdateProgress] = useState({
     essentialsDownload: 0,
     essentialsInstalling: 0,
@@ -67,7 +76,6 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
       if (update) {
         setUpdate(update);
       }
-
       if (await checkAppInstallerUpdate()) {
         setAppInstallerUpdateAvailable(true);
       }
@@ -107,8 +115,10 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
     }
   }
 
-  async function fetchWithProgress() {
+  async function fetchWithProgress(deviceType: "5mini" | "5") {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { essentials, system } = urls[deviceType];
+
     getCurrentWindow().listen(
       "UPDATE_PROGRESS",
       ({ payload }: { payload: UpdateProgress }) => {
@@ -120,7 +130,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
         );
 
         switch (payload.url) {
-          case ESSENTIALS_URL:
+          case essentials:
             essentialsDownloadedRef.current = payload.downloaded;
             setUpdateProgress((prev) => ({
               ...prev,
@@ -130,7 +140,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
             }));
             break;
 
-          case SYSTEM_URL:
+          case system:
             setUpdateProgress((prev) => ({
               ...prev,
               systemDownload: downloadPercentage,
@@ -171,7 +181,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
             await invoke("download_and_update_cmd", { url: APP_INSTALLER_URL });
           }
           console.log("Downloading system files");
-          await invoke("download_and_update_cmd", { url: SYSTEM_URL });
+          await invoke("download_and_update_cmd", { url: system });
           resolve(true);
           return;
         }
@@ -181,7 +191,7 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
     });
 
     await invoke("download_and_update_cmd", {
-      url: ESSENTIALS_URL,
+      url: essentials,
     });
 
     console.log("Waiting for timeout");
@@ -195,17 +205,22 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
 
   function failed(msg: string, err?: any) {
     console.log("[ERROR]", err);
-    setError(msg);
+    setError(msg + "\n" + err);
     setLoading(false);
   }
 
   return (
     <>
       {update?.available ? <SelfUpdate lang={lang} update={update} /> : null}
-      <div className=" h-full flex flex-col sm:p-20 p-8">
-        <h1 className="text-2xl mb-10 font-skytraxx text-center">Skytraxx</h1>
+      <div className="h-full flex flex-col sm:p-20 p-8">
+        <h1 className="text-2xl mb-10 font-skytraxx text-center">
+          Skytraxx {deviceType ? deviceType : ""}
+        </h1>
         {error && (
-          <Text ringColor="red" className="mb-4 self-center">
+          <Text
+            ringColor="red"
+            className="mb-4 self-center whitespace-pre-wrap"
+          >
             {error}
           </Text>
         )}
@@ -290,13 +305,17 @@ export default function Update({ lang }: { lang: keyof typeof text }) {
                   return failed(text[lang].deviceNotFound, deviceInfoRes.error);
                 }
 
-                if (deviceInfoRes.result?.deviceName !== "5mini") {
-                  return failed(text[lang].only5Mini);
+                if (
+                  deviceInfoRes.result?.deviceName !== "5mini" &&
+                  deviceInfoRes.result?.deviceName !== "5"
+                ) {
+                  return failed(text[lang].unsupportedDevice);
                 }
+                setDeviceType(deviceInfoRes.result.deviceName);
 
                 try {
                   const crash_report = invoke("send_crash_report_cmd");
-                  await fetchWithProgress();
+                  await fetchWithProgress(deviceInfoRes.result.deviceName);
                   await crash_report;
                 } catch (error) {
                   return failed(text[lang].updateError, error);
