@@ -1,7 +1,7 @@
 {
   "productName": "SkyUp",
   "version": "1.0.5",
-  "identifier": "skytraxx.org.Skyup",
+  "identifier": "org.skytraxx.skyup",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
